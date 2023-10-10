@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenerateProtofloxDocument", "GenerateProtofloxDocument\GenerateProtofloxDocument.csproj", "{A91F5FF7-A62C-4778-8E86-87B75DB23F0D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GenerateProtofluxDocument", "GenerateProtofluxDocument\GenerateProtofluxDocument.csproj", "{A91F5FF7-A62C-4778-8E86-87B75DB23F0D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

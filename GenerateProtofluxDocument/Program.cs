@@ -1,6 +1,6 @@
 ﻿using Mono.Cecil;
 
-namespace GenerateProtofloxDocument;
+namespace GenerateProtoFluxDocument;
 
 internal static class Program
 {
