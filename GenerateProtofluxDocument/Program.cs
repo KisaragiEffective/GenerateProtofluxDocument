@@ -1,4 +1,5 @@
-﻿using Mono.Cecil;
+﻿using Microsoft.Collections.Extensions;
+using Mono.Cecil;
 
 namespace GenerateProtoFluxDocument;
 
@@ -45,11 +46,12 @@ internal static class Program
         var nodeNameAttribute = typeUniverse.Find(x => x.FullName == "ProtoFlux.Core.NodeNameAttribute") 
                                 ?? throw new MissingMemberException("[NodeName] is ProtoFlux.Core could not be found. Maybe disappeared?");
         Console.WriteLine("[NodeName]: found");
-        var categoryAttribute = typeUniverse.Find(x => x.FullName == "FrooxEngine.CategoryAttribute") 
+        var categoryAttribute = typeUniverse.Find(x => x.FullName == "ProtoFlux.Core.NodeCategoryAttribute") 
                                 ?? throw new MissingMemberException("[Category] in FrooxEngine could not be found. Maybe disappeared?");
         Console.WriteLine("[Category]: found");
-        
-        
+
+        // the reversed encoding avoids MultiDictionary
+        var nodeCategory = new MultiValueDictionary<string, TypeReference>();
         // ReSharper disable once ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator
         // TODO: not yet
         foreach (var td in typeUniverse)
@@ -108,7 +110,9 @@ internal static class Program
 
             if (categoryAttr != null)
             {
-                // TODO: add type into hash map
+                var categoryName = (string) categoryAttr.ConstructorArguments[0].Value;
+                
+                nodeCategory.Add(categoryName, td);
                 Console.WriteLine("    set Category");
             }
                     
@@ -121,6 +125,18 @@ internal static class Program
                 Console.WriteLine($"    attr[{name}]: {attrArgumentTypes}");
             }
         }
+        
+        Console.WriteLine($"detected {nodeCategory.Count} entries");
+        // TODO: sort by chained category which is separated with slash
+        foreach (var (key, value) in nodeCategory)
+        {
+            Console.WriteLine($"category '{key}' ({value.Count}): ");
+            foreach (var typeReference in value)
+            {
+                Console.WriteLine("    " + typeReference.FullNameWithoutGenericArguments());
+            }
+        }
+        Console.WriteLine();
     }
     
     private static string NameWithTypeVar(this TypeReference td)
