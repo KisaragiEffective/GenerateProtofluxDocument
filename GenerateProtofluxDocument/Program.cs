@@ -1,4 +1,5 @@
-﻿using Microsoft.Collections.Extensions;
+﻿using System.Collections.Concurrent;
+using Microsoft.Collections.Extensions;
 using Mono.Cecil;
 
 namespace GenerateProtoFluxDocument;
@@ -36,25 +37,28 @@ internal static class Program
 
         // TODO: do we need this? 
         // TODO: this should be other collection than List. Maybe BTreeSet or something similar
-        var typeUniverse = new List<TypeDefinition>();
+        var _typeUniverse = new List<TypeDefinition>();
         foreach (var moduleDefinition in loadedAssembly)
         {
             Console.WriteLine($"read assembly: {moduleDefinition}");
-            typeUniverse.AddRange(moduleDefinition.Types);
+            _typeUniverse.AddRange(moduleDefinition.Types);
         }
 
-        var nodeNameAttribute = typeUniverse.Find(x => x.FullName == "ProtoFlux.Core.NodeNameAttribute") 
+        var typeUniverse = new HashSet<TypeDefinitionHashedByFullName>(_typeUniverse.Select(x => x.HashByFullName()));
+
+        var nodeNameAttribute = typeUniverse.Single(x => x.td.FullName == "ProtoFlux.Core.NodeNameAttribute")
                                 ?? throw new MissingMemberException("[NodeName] is ProtoFlux.Core could not be found. Maybe disappeared?");
         Console.WriteLine("[NodeName]: found");
-        var categoryAttribute = typeUniverse.Find(x => x.FullName == "ProtoFlux.Core.NodeCategoryAttribute") 
+        var categoryAttribute = typeUniverse.Single(x => x.td.FullName == "ProtoFlux.Core.NodeCategoryAttribute") 
                                 ?? throw new MissingMemberException("[Category] in FrooxEngine could not be found. Maybe disappeared?");
         Console.WriteLine("[Category]: found");
         
         var nodeCategory = new MultiValueDictionary<NestedCategoryName, TypeReference>();
         // ReSharper disable once ForeachCanBePartlyConvertedToQueryUsingAnotherGetEnumerator
         // TODO: not yet
-        foreach (var td in typeUniverse)
+        foreach (var rr in typeUniverse)
         {
+            var td = rr.td;
             if (td.FullName == "<Module>")
             {
                 // this is pseudo type, implies top-level module. skipping.
@@ -68,7 +72,7 @@ internal static class Program
                     
             var ca = td.CustomAttributes;
             // plain == compares addresses, not their contents.
-            var nodeNameAttr = ca.FirstOrDefault(x => x.AttributeType.FullName == nodeNameAttribute.FullName);
+            var nodeNameAttr = ca.FirstOrDefault(x => x.AttributeType.FullName == nodeNameAttribute.td.FullName);
 
             if (nodeNameAttr != null)
             {
@@ -105,7 +109,7 @@ internal static class Program
                         
             }
 
-            var categoryAttr = ca.FirstOrDefault(x => x.AttributeType.FullName == categoryAttribute.FullName);
+            var categoryAttr = ca.FirstOrDefault(x => x.AttributeType.FullName == categoryAttribute.td.FullName);
 
             if (categoryAttr != null)
             {
@@ -157,7 +161,7 @@ internal static class Program
         return td.FullNameWithoutGenericArguments() is "ProtoFlux.Core.ValueArgument`1" or "ProtoFlux.Core.ObjectArgument`1" or "ProtoFlux.Core.ObjectArgumentList`1";
     }
 
-    private static string FullNameWithoutGenericArguments(this TypeReference td)
+    internal static string FullNameWithoutGenericArguments(this TypeReference td)
     {
         if (td.IsGenericParameter)
         {
@@ -166,8 +170,27 @@ internal static class Program
         
         return td.Namespace + "." + td.Name;
     }
-    
+
+    private static TypeDefinitionHashedByFullName HashByFullName(this TypeDefinition td)
+    {
+        return new TypeDefinitionHashedByFullName(td);
+    }
     // TODO: discover output
     // TODO: how can we handle the Continuation and async?
     // TODO: should we handle those (ugly) FrooxEngine.ProtoFlux.CoreNodes (which has different bound on each type)?
+}
+
+internal class TypeDefinitionHashedByFullName
+{
+    public TypeDefinition td { get; }
+
+    public TypeDefinitionHashedByFullName(TypeDefinition td)
+    {
+        this.td = td;
+    }
+    
+    public override int GetHashCode()
+    {
+        return td.FullNameWithoutGenericArguments().GetHashCode();
+    }
 }
